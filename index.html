@@ -1873,16 +1873,52 @@ function selectPayment(el) {
 // ═══════════════════════════════════════════
 // PLACE ORDER
 // ═══════════════════════════════════════════
-function placeOrder() {
-  if (cart.length === 0) { showToast('⚠️ Add items to your bag first!'); return; }
-  showToast('🎉 Order placed! Confirmation sent to your WhatsApp.');
-  setTimeout(() => {
-    cart = [];
-    document.getElementById('cartCount').textContent = '0';
-    document.getElementById('cartCount').classList.remove('visible');
-    renderCart();
-    showPage('home');
-  }, 2000);
+async function placeOrder() {
+  if (cart.length === 0) { 
+    showToast('⚠️ Add items to your bag first!'); 
+    return; 
+  }
+
+  // 1. Grab the customer details from the fields we tagged above
+  const name = document.getElementById('cust_name').value;
+  const email = document.getElementById('cust_email').value;
+
+  if (!name || !email) {
+    showToast('⚠️ Please enter your name and email to proceed.');
+    return;
+  }
+
+  // 2. Calculate the total (same logic as your summary)
+  const total = cart.reduce((a, i) => a + (i.price * i.qty), 0);
+  const shipping = total >= 80 ? 0 : 7;
+  const finalAmount = total + shipping;
+
+  showToast('Connecting to Secure Payment... 🔒');
+
+  try {
+    // 3. Send the order to your Vercel Backend (we'll create this file next)
+    const response = await fetch('/api/create-bill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: finalAmount,
+        email: email,
+        name: name
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.url) {
+      // 4. Send the customer to Billplz to pay via FPX/E-Wallet
+      window.location.href = data.url;
+    } else {
+      showToast('❌ Could not initialize payment. Please try again.');
+    }
+  } catch (err) {
+    showToast('❌ Connection error. Please check your internet.');
+    console.error(err);
+  }
 }
 
 // ═══════════════════════════════════════════
