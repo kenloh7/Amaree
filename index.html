@@ -1879,16 +1879,11 @@ async function placeOrder() {
     return; 
   }
 
-  // 1. Grab the customer details from the fields we tagged above
-  const name = document.getElementById('cust_name').value;
-  const email = document.getElementById('cust_email').value;
+  // Identify who is buying (assuming you add these IDs to your HTML inputs)
+  const name = document.getElementById('checkoutName')?.value || "Customer";
+  const email = document.getElementById('checkoutEmail')?.value || "guest@email.com";
 
-  if (!name || !email) {
-    showToast('⚠️ Please enter your name and email to proceed.');
-    return;
-  }
-
-  // 2. Calculate the total (same logic as your summary)
+  // Calculate the total for Billplz (Price + Shipping)
   const total = cart.reduce((a, i) => a + (i.price * i.qty), 0);
   const shipping = total >= 80 ? 0 : 7;
   const finalAmount = total + shipping;
@@ -1896,7 +1891,7 @@ async function placeOrder() {
   showToast('Connecting to Secure Payment... 🔒');
 
   try {
-    // 3. Send the order to your Vercel Backend (we'll create this file next)
+    // This calls the "Bridge" file you will host on Vercel
     const response = await fetch('/api/create-bill', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1910,13 +1905,13 @@ async function placeOrder() {
     const data = await response.json();
     
     if (data.url) {
-      // 4. Send the customer to Billplz to pay via FPX/E-Wallet
-      window.location.href = data.url;
+      // Redirects the user to the Malaysian FPX/E-Wallet gateway
+      window.location.href = data.url; 
     } else {
-      showToast('❌ Could not initialize payment. Please try again.');
+      showToast('❌ Payment could not be started.');
     }
   } catch (err) {
-    showToast('❌ Connection error. Please check your internet.');
+    showToast('❌ Connection failed. Check your internet.');
     console.error(err);
   }
 }
