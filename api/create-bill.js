@@ -1,36 +1,28 @@
+// pages/api/create-bill.js  (or app/api/create-bill/route.js for App Router)
 export default async function handler(req, res) {
-  const AUTH_TOKEN = Buffer.from(`${process.env.BILLPLZ_API_KEY}:`).toString('base64');
-  const API_URL = process.env.BILLPLZ_ENDPOINT || 'https://www.billplz-sandbox.com/api/v3/';
-  const { amount, email, name } = req.body;
+  const { name, email, amount, description } = req.body;
 
-  try {
-    const response = await fetch(`${API_URL}bills`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${AUTH_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        collection_id: process.env.BILLPLZ_COLLECTION_ID,
-        email: email,
-        name: name,
-        amount: Math.round(parseFloat(amount) * 100), // Added parseFloat to be safe
-        callback_url: `https://${req.headers.host}/api/callback`,
-        redirect_url: `https://${req.headers.host}/`
-      })
-    });
+  const params = new URLSearchParams({
+    collection_id: process.env.BILLPLZ_COLLECTION_ID,
+    email,
+    name,
+    amount: String(Math.round(amount * 100)), // in cents
+    description,
+    callback_url: `${process.env.NEXT_PUBLIC_URL}/api/billplz-callback`,
+    redirect_url: `${process.env.NEXT_PUBLIC_URL}/payment/success`,
+  });
 
-    const result = await response.json();
+  const response = await fetch('https://www.billplz.com/api/v3/bills', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(process.env.BILLPLZ_API_KEY + ':').toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
 
-    // THIS IS THE KEY: If it's a 400, log the exact reason to Vercel Logs
-    if (!response.ok) {
-      console.error("Billplz Error Detail:", JSON.stringify(result));
-      return res.status(400).json(result);
-    }
+  const bill = await response.json();
+  if (!response.ok) return res.status(400).json(bill);
 
-    return res.status(200).json({ url: result.url });
-  } catch (error) {
-    console.error("Server Error:", error.message);
-    return res.status(500).json({ error: error.message });
-  }
+  res.json({ url: bill.url, bill_id: bill.id });
 }
